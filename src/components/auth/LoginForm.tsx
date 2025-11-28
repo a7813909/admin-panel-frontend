@@ -121,7 +121,7 @@ const LoginForm: React.FC = () => {
           </Button>
 
           {/* Ссылка "Нет аккаунта? Зарегистрироваться", открывающая модалку */}
-          <Text color="dimmed" size="sm" align="center" mt="md">
+          <Text color="dimmed" size="sm"  mt="md">
             Нет аккаунта?{' '}
             <Anchor component="button" type="button" onClick={openRegisterModal}> 
               Зарегистрироваться
