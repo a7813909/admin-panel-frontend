@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import React from 'react'; 
+//import React from 'react'; 
 
 // Важно: Notifications должен быть импортирован из @mantine/notifications
 import { Notifications } from '@mantine/notifications'; 
