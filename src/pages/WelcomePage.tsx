@@ -102,7 +102,7 @@ const WelcomePage: React.FC = () => {
           </Stack> 
 
           <Text size="xs" style={{ color: theme.white, opacity: 0.6, marginTop: 'auto' }}>
-            Разработчик: "Cat ЛУНТИК-Solonce" ltd.
+            Разработчик: "Yanikov" ltd.
           </Text>
         </Box>
 
