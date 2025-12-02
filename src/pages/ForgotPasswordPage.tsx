@@ -1,70 +1,63 @@
-import React, { useState, useCallback } from 'react';
-import { useNavigate, Link } from 'react-router-dom'; // [ВАЖНО] Link импортируем отсюда
+import { useCallback } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import {
-    Container, 
-    Title, 
-    Text, 
-    TextInput, 
-    Button, 
-    Anchor, 
-    Paper, 
-    Group, 
+    Container,
+    Title,
+    Text,
+    TextInput,
+    Button,
+    Anchor,
+    Paper,
+    Group,
     Stack // Stack для вертикального расположения элементов
 } from '@mantine/core';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
+// import { z } from 'zod'; // Zod теперь не нужен здесь, так как схема импортируется
 import { notifications } from "@mantine/notifications";
 import { IconAlertCircle, IconCheck } from "@tabler/icons-react";
-import API from "../api/axios"; // [ВАЖНО] Твой настроенный Axios-клиент
+import API from "../api/axios"; // Твой настроенный Axios-клиент
 
-// Схема валидации для формы восстановления пароля с использованием Zod
-const forgotPasswordSchema = z.object({
-    email: z.string().email('Неправильный email адрес'), // Сообщение об ошибке
-});
-
-// Тип данных для полезной нагрузки формы
-type ForgotPasswordPayload = z.infer<typeof forgotPasswordSchema>;
+// !!! ВАЖНО: Импортируем схему и тип из централизованного файла схем !!!
+import { forgotPasswordSchema, type ForgotPasswordFormInput } from '../schemas/authSchema';
 
 const ForgotPasswordPage: React.FC = () => {
-  const navigate = useNavigate(); // Hook для навигации
+  const navigate = useNavigate();
 
   // Инициализация формы с react-hook-form и ZodResolver
-  const form = useForm<ForgotPasswordPayload>({
+  // Используем ForgotPasswordFormInput, импортированный из authSchema.ts
+  const form = useForm<ForgotPasswordFormInput>({
     resolver: zodResolver(forgotPasswordSchema),
-    defaultValues: { email: '' }, // Начальное значение email
-    mode: "onChange", // Режим валидации: при изменении поля
+    defaultValues: { email: '' },
+    mode: "onChange",
   });
 
-  const [message, setMessage] = useState<string | null>(null); // Для отображения успешных сообщений от бэкенда/фронтенда
-  const [error, setError] = useState<string | null>(null);   // Для ошибок
+  // Состояния для отображения сообщений/ошибок (можно использовать только Mantine Notifications)
+  
 
   // Обработчик отправки формы
-  const onSubmit = useCallback(async (values: ForgotPasswordPayload) => {
-    setMessage(null); // Сбрасываем сообщения при новой попытке
-    setError(null);
+  const onSubmit = useCallback(async (values: ForgotPasswordFormInput) => {
+    
     console.log('Запрос на сброс пароля для email:', values.email);
 
     try {
-        // [ВАЖНО] Отправка запроса на твой бэкенд для сброса пароля
-        await API.post('/auth/forgot-password', { email: values.email }); 
-        
-        // Уведомление об успехе
+        await API.post('/auth/forgot-password', { email: values.email });
+
         notifications.show({
             title: "Отправлено",
             message: "Если аккаунт с таким email существует, ссылка для сброса пароля отправлена на вашу почту.",
             color: "teal",
             icon: <IconCheck size="1rem" />,
             autoClose: 5000,
-            onClose: () => navigate('/login') // Перенаправляем на страницу входа после успешной отправки
+            onClose: () => navigate('/login')
         });
-        
-        form.reset(); // Очищаем форму
+
+        form.reset();
     } catch (err: any) {
         console.error('Ошибка запроса сброса пароля:', err);
+        // Исправлена потенциальная ошибка, где `err.message` не всегда корректно срабатывал в `err.message`
         const errorMessage = err.response?.data?.message || err.message || "Произошла ошибка при отправке запроса.";
-        
-        // Показываем уведомление об ошибке
+
         notifications.show({
             title: "Ошибка",
             message: errorMessage,
@@ -73,9 +66,7 @@ const ForgotPasswordPage: React.FC = () => {
             autoClose: 5000,
         });
 
-        // Можно установить ошибку прямо в поле email формы
         form.setError('email', { type: "server", message: errorMessage });
-        setError(errorMessage); // Также устанавливаем общую ошибку
     }
   }, [form, navigate]); // Зависимости useCallback
 
@@ -83,8 +74,8 @@ const ForgotPasswordPage: React.FC = () => {
     <Container size={420} my={40}>
       <Paper withBorder shadow="md" p={30} mt={30} radius="md">
         <Title
-          order={2} // h2 заголовок
-          ta="center" // Текст по центру
+          order={2}
+          ta="center"
           mb="md"
         >
           Забыли пароль?
@@ -93,42 +84,28 @@ const ForgotPasswordPage: React.FC = () => {
           Мы поможем вам восстановить доступ. Введите адрес электронной почты, указанный при регистрации.
         </Text>
 
+        {/* Добавляем форму сюда, она отсутствовала в предыдущем фрагменте */}
         <form onSubmit={form.handleSubmit(onSubmit)}>
-          <Stack> {/* Stack для вертикального расположения с отступами */}
+          <Stack>
             <TextInput
               label="Ваша электронная почта"
-              placeholder="vash.email@example.com"
-              required // Поле обязательно для заполнения
-              {...form.register('email')} // Привязка к react-hook-form
-              error={form.formState.errors.email?.message} // Отображение ошибки валидации
+              placeholder="example@mail.com"
+              required
+              {...form.register('email')}
+              error={form.formState.errors.email?.message}
             />
-            
-            {/* Сообщения об успехе или ошибке (опционально, так как есть notifications) */}
-            {message && <Text c="green" mt="sm">{message}</Text>}
-            {error && <Text c="red" mt="sm">{error}</Text>}
-
-            <Group justify="apart" mt="lg"> {/* Группа для выравнивания элементов по краям */}
-              {/* Ссылка на страницу входа */}
-              <Anchor 
-                component={Link} // [ВАЖНО] Mantine Anchor с Link из react-router-dom
-                to="/login" 
-                color="dimmed" 
-                size="xs"
-              >
-                Вспомнили? Вернуться ко входу!
-              </Anchor>
-            </Group>
-            
-            <Button 
-              type="submit" 
-              fullWidth 
-              mt="xl" 
-              loading={form.formState.isSubmitting} // [ВАЖНО] Кнопка загрузки, пока запрос выполняется
-            >
-              Сбросить пароль
-            </Button>
           </Stack>
+          <Button type="submit" fullWidth mt="xl" loading={form.formState.isSubmitting}>
+            Восстановить пароль
+          </Button>
         </form>
+
+        <Group justify="flex-end" mt="md">
+            <Anchor component={Link} to="/login" size="sm">
+            Вспомнили? Вернуться ко входу!
+            </Anchor>
+        </Group>
+
       </Paper>
     </Container>
   );

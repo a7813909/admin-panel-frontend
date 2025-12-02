@@ -14,10 +14,10 @@ import React from 'react';
 
       return (
         <Container size="md" style={{ textAlign: 'center', marginTop: '50px' }}>
-          <Title order={1}>Добро пожаловать на Дашборд!</Title>
-          <Text size="lg" style={{ marginTop: '20px' }}>
-            Это ваш личный кабинет. Доступен только авторизованным пользователям.
-          </Text>
+          <Title order={1}>Добро пожаловать в систему учета персонала!</Title>
+            <Text size="lg" c="red" style={{ marginTop: '20px' }}> 
+        Это ваш личный кабинет. Доступен только авторизованным пользователям. Здесь будет интерфейс согласно тех. заданию. ЖДЕМС!!! Пока находится в разработке.
+      </Text>
           <Button onClick={handleLogout} color="red" style={{ marginTop: '30px' }}>
             Выйти
           </Button>

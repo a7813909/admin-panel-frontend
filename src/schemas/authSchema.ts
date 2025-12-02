@@ -1,20 +1,70 @@
- import { z } from 'zod';
+import { z } from 'zod';
 
-    export const registrationSchema = z.object({
-      name: z.string().min(1, "Имя и фамилия обязательны").max(100, "Имя слишком длинное"),
-      email: z.string().email("Неверный формат email").min(1, "Email обязателен"),
-      password: z.string().min(8, "Пароль должен быть не менее 8 символов"),
-      confirmPassword: z.string(), // Валидация совпадения будет ниже
-    }).refine((data) => data.password === data.confirmPassword, {
-      message: "Пароли не совпадают",
-      path: ["confirmPassword"], // Указываем, к какому полю привязать ошибку
-    });
+// ==========================================================
+// СХЕМЫ ДЛЯ РЕГИСТРАЦИИ
+// ==========================================================
+export const registrationSchema = z.object({
+  name: z.string().min(1, "Имя и фамилия обязательны").max(100, "Имя слишком длинное"),
+  email: z.string().email("Неверный формат email").min(1, "Email обязателен"),
+  password: z.string()
+    .min(8, "Пароль должен быть не менее 8 символов")
+    .max(50, "Пароль должен быть не более 50 символов.")
+    .regex(/[A-Z]/, 'Пароль должен содержать хотя бы одну заглавную букву.')
+    .regex(/[a-z]/, 'Пароль должен содержать хотя бы одну строчную букву.')
+    .regex(/[0-9]/, 'Пароль должен содержать хотя бы одну цифру.')
+    .regex(/[^a-zA-Z0-9]/, 'Пароль должен содержать хотя бы один специальный символ.'),
+  confirmPassword: z.string().min(1, 'Подтверждение пароля обязательно.'), // Валидация совпадения будет ниже
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Пароли не совпадают",
+  path: ["confirmPassword"], // Указываем, к какому полю привязать ошибку
+});
 
-    export type RegistrationPayload = z.infer<typeof registrationSchema>;
+export type RegistrationPayload = z.infer<typeof registrationSchema>;
 
-    // Опционально: схема для логина, если понадобится в будущем
-    export const loginSchema = z.object({
-      email: z.string().email("Неверный формат email").min(1, "Email обязателен"),
-      password: z.string().min(1, "Пароль обязателен"),
-    });
-    export type LoginPayload = z.infer<typeof loginSchema>;
+// ==========================================================
+// СХЕМЫ ДЛЯ АВТОРИЗАЦИИ (ЛОГИНА)
+// ==========================================================
+export const loginSchema = z.object({
+  email: z.string().email("Неверный формат email").min(1, "Email обязателен"),
+  password: z.string().min(1, "Пароль обязателен"), // Можно добавить минимальную длину, если требуется
+});
+export type LoginPayload = z.infer<typeof loginSchema>;
+
+
+// ==========================================================
+// СХЕМЫ ДЛЯ ФУНКЦИОНАЛА СБРОСА ПАРОЛЯ
+// ==========================================================
+
+// Схема для ЗАПРОСА на сброс пароля (пользователь вводит email)
+// !!! ВАЖНО: ЗДЕСЬ ОБЯЗАТЕЛЬНО 'export' !!!
+export const forgotPasswordSchema = z.object({
+    email: z.string().email('Неправильный email адрес').min(1, 'Email обязателен'),
+});
+// !!! ВАЖНО: ЗДЕСЬ ОБЯЗАТЕЛЬНО 'export' !!!
+export type ForgotPasswordFormInput = z.infer<typeof forgotPasswordSchema>;
+
+
+// Схема для ФАКТИЧЕСКОГО СБРОСА пароля (пользователь с токеном вводит новый пароль)
+// !!! ВАЖНО: ЗДЕСЬ ОБЯЗАТЕЛЬНО 'export' !!!
+export const resetPasswordSchema = z
+  .object({
+    // Токен будет передан в форму (возможно, как скрытое поле или часть defaultValues)
+    // и валидироваться здесь Zod-ом
+    token: z.string().min(1, 'Токен обязателен.'),
+    password: z
+      .string()
+      .min(8, 'Пароль должен содержать не менее 8 символов.')
+      .max(50, 'Пароль должен содержать не более 50 символов.')
+      .regex(/[A-Z]/, 'Пароль должен содержать хотя бы одну заглавную букву.')
+      .regex(/[a-z]/, 'Пароль должен содержать хотя бы одну строчную букву.')
+      .regex(/[0-9]/, 'Пароль должен содержать хотя бы одну цифру.')
+      .regex(/[^a-zA-Z0-9]/, 'Пароль должен содержать хотя бы один специальный символ.'),
+    confirmPassword: z.string().min(1, 'Подтверждение пароля обязательно.'),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: 'Пароли не совпадают.',
+    path: ['confirmPassword'], // Привязываем ошибку к полю confirmPassword
+  });
+
+// !!! ВАЖНО: ЗДЕСЬ ОБЯЗАТЕЛЬНО 'export' !!!
+export type ResetPasswordFormInput = z.infer<typeof resetPasswordSchema>;

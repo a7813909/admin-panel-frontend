@@ -1,53 +1,82 @@
+import React from 'react'; // React теперь нужен как переменная для JSX
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-//import React from 'react'; 
-
-// Важно: Notifications должен быть импортирован из @mantine/notifications
-import { Notifications } from '@mantine/notifications'; 
-// А MantineProvider из @mantine/core
-import { MantineProvider } from '@mantine/core'; 
-
-// !!! ЭТИ ИМПОРТЫ CSS-ФАЙЛОВ ТЕПЕРЬ АБСОЛЮТНО КРИТИЧНЫ И ОБЯЗАТЕЛЬНЫ !!!
-// Для Mantine V7 их нужно импортировать в корневом файле (main.tsx или App.tsx)
+import { Notifications } from '@mantine/notifications';
+import { MantineProvider, Center, Loader } from '@mantine/core'; // Добавляем Center и Loader для начальной загрузки Mantine
 import '@mantine/core/styles.css';         // Базовые стили Mantine
-import '@mantine/notifications/styles.css'; // Стили для уведомлений
+import '@mantine/notifications/styles.css'; // Стили для уведомлений Mantine
 
-// Импорт страниц
+// ==========================================================
+// !!! НОВЫЕ ИМПОРТЫ ДЛЯ AUTH CONTEXT !!!
+// ==========================================================
+import { AuthProvider, useAuth } from './context/AuthContext'; // <--- Импортируем провайдер и хук
+
+// Импорт всех страниц
 import WelcomePage from './pages/WelcomePage';
 import DashboardPage from './pages/DashboardPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 
-function App() {
-  const isAuthenticated = localStorage.getItem('authToken');
+// ==========================================================
+// ДОЧЕРНИЙ КОМПОНЕНТ APPCONTENT
+// ВЫНЕСЕН ОТДЕЛЬНО, ЧТОБЫ ИСПОЛЬЗОВАТЬ useAuth()
+// ==========================================================
+const AppContent: React.FC = () => {
+  const { isAuthenticated, isLoading } = useAuth(); // <--- Используем хук useAuth() из контекста
 
+  // Если состояние аутентификации ещё проверяется, показываем лоадер
+  if (isLoading) {
+    return (
+      <Center style={{ height: '100vh' }}>
+        <Loader size="xl" /> {/* Красивый лоадер от Mantine */}
+      </Center>
+    );
+  }
+
+  // После загрузки, настраиваем маршруты
   return (
-    // Оборачиваем всё приложение в MantineProvider.
-    // Пропсы withGlobalStyles и withNormalizeCSS УДАЛЕНЫ!
-    <MantineProvider 
+    <Router>
+      <Routes>
+        {/* Маршрут по умолчанию: если авторизован -> дашборд, иначе -> логин */}
+        <Route
+          path="/"
+          element={isAuthenticated ? <Navigate to="/dashboard" /> : <Navigate to="/login" />}
+        />
+        {/* Страница логина */}
+        <Route path="/login" element={<WelcomePage />} />
+        {/* Страницы восстановления пароля */}
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
+        {/* Маршрут дашборда: доступен только авторизованным */}
+        <Route
+          path="/dashboard"
+          element={isAuthenticated ? <DashboardPage /> : <Navigate to="/login" />}
+        />
+        {/* Опционально: Маршрут для 404 страницы (любые другие пути) */}
+        {/* <Route path="*" element={<NotFoundPage />} /> */}
+      </Routes>
+    </Router>
+  );
+};
+
+// ==========================================================
+// ГЛАВНЫЙ КОМПОНЕНТ APP
+// Оборачивает приложение в провайдеры (Mantine и Auth)
+// ==========================================================
+function App() {
+  return (
+    <MantineProvider
+      // Здесь можно настроить свою Mantine тему
       theme={{
-        // Здесь можно настроить свою Mantine тему, если нужно. Например, основной цвет:
-        // primaryColor: 'blue', 
-        // Если ты использовал ColorScheme (темная/светлая тема), то теперь нужно использовать `useMantineColorScheme` из `@mantine/core`
-        // и передавать `colorScheme` в `theme` напрямую, а не через `ColorSchemeProvider`.
-        // Например: colorScheme: 'dark',
+        // Например: primaryColor: 'blue',
       }}
     >
       {/* Notifications компонент должен быть внутри MantineProvider */}
       <Notifications />
 
-      <Router>
-        <Routes>
-          <Route 
-            path="/" 
-            element={isAuthenticated ? <Navigate to="/dashboard" /> : <Navigate to="/login" />} 
-          />
-          <Route path="/login" element={<WelcomePage />} />
-          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-          <Route 
-            path="/dashboard" 
-            element={isAuthenticated ? <DashboardPage /> : <Navigate to="/login" />}
-          />
-        </Routes>
-      </Router>
+      {/* !!! Оборачиваем нашу AppContent в AuthProvider !!! */}
+      <AuthProvider>
+        <AppContent /> {/* Теперь AppContent имеет доступ к контексту аутентификации */}
+      </AuthProvider>
     </MantineProvider>
   );
 }
