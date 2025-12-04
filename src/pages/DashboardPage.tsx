@@ -27,7 +27,7 @@ import {
   IconLogout,
   IconUserScan,
   IconListDetails,
-  type IconProps, // <--- ИСПРАВЛЕНО: 'type' для импорта типа!
+  //type IconProps, // <--- ИСПРАВЛЕНО: 'type' для импорта типа!
 } from '@tabler/icons-react';
 import { useAuth } from '../context/AuthContext';
 import { format } from 'date-fns'; // npm install date-fns
