@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z, } from 'zod'; // Хорошо, что импортируешь ZodString, если понадобится
 
 // ==========================================================
 // СХЕМЫ ДЛЯ РЕГИСТРАЦИИ
@@ -14,6 +14,12 @@ export const registrationSchema = z.object({
     .regex(/[0-9]/, 'Пароль должен содержать хотя бы одну цифру.')
     .regex(/[^a-zA-Z0-9]/, 'Пароль должен содержать хотя бы один специальный символ.'),
   confirmPassword: z.string().min(1, 'Подтверждение пароля обязательно.'), // Валидация совпадения будет ниже
+  
+  // >>>>>> ДОБАВЛЕНО ПОЛЕ departamentId <<<<<<
+  // Оно должно быть строкой и обязательным
+  departamentId: z.string()
+    .min(1, "Пожалуйста, выберите департамент."), // Устанавливаем сообщение об ошибке для обязательного поля
+
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Пароли не совпадают",
   path: ["confirmPassword"], // Указываем, к какому полю привязать ошибку
@@ -48,7 +54,7 @@ export type ForgotPasswordFormInput = z.infer<typeof forgotPasswordSchema>;
 // !!! ВАЖНО: ЗДЕСЬ ОБЯЗАТЕЛЬНО 'export' !!!
 export const resetPasswordSchema = z
   .object({
-    // Токен будет передан в форму (возможно, как скрытое поле или часть defaultValues)
+    // Токен будет передан в форму (возможно, как скрытое поле или bagian dari defaultValues)
     // и валидироваться здесь Zod-ом
     token: z.string().min(1, 'Токен обязателен.'),
     password: z

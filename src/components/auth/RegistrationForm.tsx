@@ -1,118 +1,261 @@
-import React, { useCallback, useState } from "react";
-import { useForm } from "react-hook-form";
+import React, { useCallback, useState, useEffect } from "react";
+// Импортируем Controller из react-hook-form
+import { useForm, Controller, type UseFormReturn } from "react-hook-form"; 
 import { zodResolver } from "@hookform/resolvers/zod";
+// Убедись, что путь к твоим схемам верный
 import { registrationSchema, type RegistrationPayload } from "../../schemas/authSchema"; 
-import { TextInput, PasswordInput, Button, Select, Stack, Title } from "@mantine/core";
-import { notifications } from "@mantine/notifications";
- import { IconAlertCircle, IconCheck } from "@tabler/icons-react";
-import API from "../../api/axios";
-import { useNavigate } from "react-router-dom"; // Для возможного редиректа после регистрации
 
-// Определяем пропсы для компонента: нужна функция для закрытия модалки
+// Компоненты из Mantine
+import {
+  TextInput,
+  PasswordInput,
+  Button,
+  Select,
+  Stack,
+  Title,
+  Loader, // Для индикатора загрузки
+} from "@mantine/core";
+// Уведомления
+import { notifications } from "@mantine/notifications";
+import { IconAlertCircle, IconCheck } from "@tabler/icons-react";
+// API клиент (предполагаем, что он настроен)
+import API from "../../api/axios"; 
+// Навигация (для редиректа, если нужно)
+import { useNavigate } from "react-router-dom";
+
+// --- Интерфейс для данных, которые возвращает API при запросе департаментов ---
+// Предполагаем, что API возвращает массив объектов с id и name
+interface ApiDepartmentResponse {
+  id: string;
+  name: string;
+}
+// --- /Интерфейс для данных API ---
+
+// ---- Интерфейс для опций компонента Select — стандартный формат ----
+interface SelectDepartmentOption {
+  value: string; // ID департамента
+  label: string; // Название департамента для отображения
+}
+// ---- /Интерфейс для опций Select ----
+
+// --- Интерфейс для имен полей формы (нужен для form.setError) ---
+// Убедись, что departamentId тут есть, если он в RegistrationPayload
+type RegistrationPayloadFieldNames = keyof RegistrationPayload;
+
+// --- Пропсы компонента ---
 interface RegistrationFormProps {
-  onClose: () => void; 
+  onClose: () => void; // Функция для закрытия модалки, например
 }
 
-const RegistrationForm: React.FC<RegistrationFormProps> = ({ onClose }) => { 
+const RegistrationForm: React.FC<RegistrationFormProps> = ({ onClose }) => {
   const navigate = useNavigate();
-  const [selectedDepartmentId, setSelectedDepartmentId] = useState<string | null>(null);
 
-  const form = useForm<RegistrationPayload>({
-    resolver: zodResolver(registrationSchema),
+
+  // --- Состояния для списка департаментов ---
+  const [departments, setDepartments] = useState<SelectDepartmentOption[]>([]);
+  const [isLoadingDepartments, setIsLoadingDepartments] = useState<boolean>(true);
+  // Ошибка, которая может возникнуть при загрузке самого СПИСКА департаментов
+  const [departmentLoadError, setDepartmentLoadError] = useState<string | null>(null);
+
+
+  // --- Хук useEffect для загрузки списка департаментов при первом рендере ---
+  useEffect(() => {
+    const fetchDepartments = async () => {
+      setIsLoadingDepartments(true);
+      setDepartmentLoadError(null); // Сбрасываем ошибку перед новой загрузкой
+
+      try {
+        // !!! ЗАМЕНИ "/departments" НА ПРАВИЛЬНЫЙ URL, ЕСЛИ ОН ДРУГОЙ !!!
+        const response = await API.get<ApiDepartmentResponse[]>("/departments");
+
+        // --- Преобразуем данные из формата API в формат, нужный для Mantine Select ---
+        setDepartments(response.data.map((dept: ApiDepartmentResponse) => ({
+          value: dept.id,       // ID департамента идет в 'value'
+          label: dept.name,     // Название идет в 'label'
+        })));
+        // --- Конец преобразования ---
+
+        setIsLoadingDepartments(false);
+      } catch (error: any) {
+        console.error("Ошибка при загрузке списка департаментов:", error);
+        // Показываем уведомление пользователю, если список не подгрузился
+        notifications.show({
+          title: "Ошибка загрузки",
+          message: "Не удалось получить список департаментов. Попробуйте обновить страницу.",
+          color: "red",
+          icon: <IconAlertCircle size="1rem" />,
+          autoClose: 7000,
+        });
+        setDepartmentLoadError("Не удалось загрузить список департаментов."); // Сохраняем ошибку для возможного отображения
+        setIsLoadingDepartments(false);
+        setDepartments([]); // Очищаем список, если получили ошибку
+      }
+    };
+
+    fetchDepartments();
+  }, []); // Пустой массив зависимостей означает, что этот эффект выполнится только один раз
+
+  // --- Настройка React Hook Form ---
+  const form: UseFormReturn<RegistrationPayload> = useForm<RegistrationPayload>({
+    // Используем zodResolver для валидации схемы RegistrationPayload
+    resolver: zodResolver(registrationSchema), 
     defaultValues: {
       name: "",
-      email: "",
+      email: "@",
       password: "",
       confirmPassword: "",
+      // !!! ВАЖНО: Должно быть в defaultValues, еслиdepartamentId есть в схеме !!!
+      // Если схема ожидает string(), то "" - лучший вариант.
+      // Если схема допускает null, то null.
+      departamentId: "", 
     },
-    mode: "onTouched" 
+    //mode: "onTouched" // Валидация запускается после потери фокуса полем
   });
 
+  // --- ОБРАБОТЧИК САБМИТА ФОРМЫ ---
+  // Используем useCallback для оптимизации, чтобы функция не пересоздавалась при каждом рендере
   const onSubmit = useCallback(async (values: RegistrationPayload) => {
-    if (!selectedDepartmentId) { 
-      notifications.show({
-        title: "Ошибка",
-        message: "Пожалуйста, выберите департамент.",
-        color: "red",
-        icon: <IconAlertCircle size="1rem" />
-      });
-      return;
-    }
-
     try {
+      // --- Отправка данных на бэкенд ---
+      // Убедись, что "/auth/signup" – правильный эндпоинт
       await API.post("/auth/signup", {
         name: values.name,
         email: values.email,
         password: values.password,
-        role: "USER", // <-- ПОКА ЧТО РЕГИСТРИРУЕМ КАК USER, АДАПТИРУЙ ПОД ТВОЙ БЭКЕНД ИЛИ РОЛИ
-        departamentId: selectedDepartmentId,
+        role: "ADMIN", // <-- ПОКА ЧТО ЗАХАРДКОЖЕНА РОЛЬ 'USER'. АДАПТИРУЙ ПОД СВОИ НУЖДЫ.
+        // !!! БЕРЕМ departamentId НАПРЯМУЮ ИЗ ДАННЫХ ФОРМЫ, КОТОРЫЕ ВАЛИДИРОВАЛ ZOD !!!
+        departamentId: values.departamentId, 
       });
 
+      // --- Уведомление об успехе ---
       notifications.show({
         title: "Отлично!",
-        message: "Вы успешно зарегистрировались. Теперь вы можете войти.", 
+        message: "Вы успешно зарегистрировались. Теперь можете войти.",
         color: "teal",
         icon: <IconCheck size="1rem" />,
-        autoClose: 5000,
-        onClose: () => {
-             onClose(); // Закрываем модалку после успешной регистрации
-             // После регистрации можно сразу залогинить пользователя или попросить его ввести данные снова.
-             // Если хочешь сразу залогинить (бэкенд должен вернуть токен после signup):
-             // navigate('/dashboard'); 
-             // В этом сценарии, предполагаем, что юзер просто закроет модалку и использует LoginForm для входа.
+        autoClose: 2000, 
+        onClose: () => { 
+             onClose(); // Закрываем модалку
+             // Если нужно перенаправить пользователя после регистрации:
+             //navigate('/dashboard'); 
         },
       });
 
-      form.reset(); // Сбрасываем форму
-      setSelectedDepartmentId(null); 
+      form.reset(); // Сбрасываем все поля формы
+      // !!! УБРАЛИ setSelectedDepartmentId(null);, этого стейта больше нет !!!
+
     } catch (error: any) {
-      if (error.response?.data?.errors) {
+      // --- Обработка ошибок от сервера ---
+      // Проверяем, есть ли в ответе сервера массив конкретных ошибок по полям
+      if (error.response?.data?.errors && Array.isArray(error.response.data.errors)) {
         (error.response.data.errors as { path: string[], message: string }[]).forEach(err => {
-          form.setError(err.path[0] as RegistrationPayloadFieldNames, { type: "server", message: err.message });
+          // Пытаемся установить ошибку на конкретное поле в react-hook-form
+          if (err.path && err.path.length > 0) {
+             // err.path[0] должен быть названием поля (например, 'name', 'email', 'departamentId')
+             form.setError(err.path[0] as RegistrationPayloadFieldNames, { type: "server", message: err.message });
+          } else {
+            // Если path отсутствует, но есть сообщение, показываем общее уведомление
+            notifications.show({
+              title: "Ошибка",
+              message: err.message,
+              color: "red",
+              icon: <IconAlertCircle size="1rem" />,
+              autoClose: 5000,
+            });
+          }
+        });
+      } else {
+        // Если нет конкретных ошибок, показываем общее сообщение
+        const message = error.response?.data?.message || "Не удалось связаться с сервером. Попробуйте позже.";
+        notifications.show({
+          title: "Ошибка регистрации",
+          message: message,
+          color: "red",
+          icon: <IconAlertCircle size="1rem" />,
+          autoClose: 7000,
         });
       }
-      const message = error.response?.data?.message || "Не удалось связаться с сервером.";
-      notifications.show({
-        title: "Ошибка регистрации",
-        message: message,
-        color: "red",
-        icon: <IconAlertCircle size="1rem" />,
-        autoClose: 5000,
-      });
     }
-  }, [form, selectedDepartmentId, onClose, navigate]);
+  }, [form, onClose, navigate]); // Зависимости useCallback
 
-  type RegistrationPayloadFieldNames = keyof RegistrationPayload;
-
+  // --- Render JSX ---
   return (
+    // Форма должна быть обернута в <form> с onSubmit
     <form onSubmit={form.handleSubmit(onSubmit)}>
-      <Stack> 
-        <Title order={3} ta="center" mb="lg"> 
-          Создать новый аккаунт
-        </Title>
-        <TextInput label="Имя и Фамилия" placeholder="Иван Иванов" {...form.register("name")} error={form.formState.errors.name?.message} mb="sm" />
-        <TextInput label="Рабочий Email" type="email" placeholder="user@example.com" {...form.register("email")} error={form.formState.errors.email?.message} mb="sm" autoComplete="email" />
-        <PasswordInput label="Пароль" placeholder="Не менее 8 символов" {...form.register("password")} error={form.formState.errors.password?.message} mb="sm" autoComplete="new-password" />
-        <PasswordInput label="Подтвердите пароль" placeholder="Повторите пароль" {...form.register("confirmPassword")} error={form.formState.errors.confirmPassword?.message} mb="lg" autoComplete="new-password" />
-        <Select
-          label="Департамент"
-          placeholder="Выберите отдел"
-          data={[
-            { value: 'b4f3e72d-29db-4b1d-b8a7-42bbc4af3d2d', label: 'Администрация' },
-            { value: '6b6071f3-e29c-4933-aedd-4079e1c9db2b', label: 'IT-отдел' },
-            { value: 'c865f83d-fa19-4920-95a3-d78ca836dea0', label: 'Бухгалтерия' },
-          ]}
-          value={selectedDepartmentId}
-          onChange={setSelectedDepartmentId}
-          required
-          mb="lg"
-          error={!selectedDepartmentId && form.formState.isSubmitted ? "Пожалуйста, выберите департамент" : undefined}
+      <Stack gap="md">
+        <Title order={2}>Создать новый аккаунт</Title> 
+
+        <TextInput
+          label="Имя и Фамилия"
+          placeholder="Введите ваше имя и фамилию"
+          {...form.register("name")} 
+          error={form.formState.errors.name?.message} 
         />
-        <Button type="submit" fullWidth mt="xl">
+
+        <TextInput
+          label="Рабочий Email"placeholder="Введите ваш email"
+          {...form.register("email")}
+          error={form.formState.errors.email?.message}
+        />
+
+        <PasswordInput
+          label="Пароль"
+          placeholder="Придумайте надежный пароль"
+          {...form.register("password")}
+          error={form.formState.errors.password?.message}
+        />
+
+        <PasswordInput
+          label="Подтвердите пароль"
+          placeholder="Повторите пароль"
+          {...form.register("confirmPassword")}
+          error={form.formState.errors.confirmPassword?.message}
+        />
+
+        {/* --- Компонент Select, управляемый через Controller --- */}
+        <Controller
+          name="departamentId" // !!! Имя поля должно ТОЧНО совпадать с ключом в RegistrationPayload и zodSchema !!!
+          control={form.control} // Подключаем к react-hook-form
+          render={({ field, fieldState }) => ( // field и fieldState предоставляют всю нужную информацию
+            <Select
+              label="Департамент *" 
+              placeholder="Выберите департамент"
+              data={departments} // Массив опций [{value: 'id', label: 'Name'}, ...]
+              
+              // --- Эти пропсы передаются напрямую в Mantine Select ---
+              {...field} 
+              // --- /Пропсы ---
+
+              // --- Обработка ошибки поля и состояния загрузки ---
+              error={fieldState.error?.message} // Показываем ошибку от Zod или сервера для этого поля
+              searchable // Добавляем поиск, если список большой
+              disabled={isLoadingDepartments || departments.length === 0 || !!departmentLoadError} // Дизимблим, если грузим, нет департаментов, или была ошибка загрузки списка
+              leftSection={isLoadingDepartments ? <Loader size="xs" /> : null} // Индикатор загрузки
+              
+              // Mantine Select может возвращать null. Если схема НЕ nullable, передаем пустую строку.
+              onChange={(value) => {
+                field.onChange(value ?? ""); // <-- Это ОБНОВЛЯЕТ state ВНУТРЯ react-hook-form
+                // !!! Больше не нужноsetSelectedDepartmentId(value); !!!
+              }}
+            />
+          )}
+        />
+         {/* Можно показать ошибку загрузки списка, если она была */}
+         {departmentLoadError && <div style={{ color: 'red', fontSize: '0.875rem' }}>{departmentLoadError}</div>}
+        {/* --- /Controller для Select --- */}
+
+        <Button 
+          type="submit" 
+          mt="md" // Отступ сверху
+          leftSection={<IconCheck size="1rem" />} // Иконка слева
+          loading={form.formState.isSubmitting} // Показываем спиннер на кнопке, когда форма сабмитится
+          disabled={form.formState.isSubmitting || departments.length === 0 || !!departmentLoadError} // Дизимблим, если сабмитится или была ошибка загрузки списка
+        >
           Зарегистрироваться
         </Button>
       </Stack>
     </form>
   );
 };
+
 export default RegistrationForm;

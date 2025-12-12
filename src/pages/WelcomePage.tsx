@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { type FC, useState, useEffect } from 'react';
 import {
   Box,
   Paper,
@@ -14,9 +14,37 @@ import {
 import { IconCat, IconCircleCheck } from '@tabler/icons-react';
 import LoginForm from '../components/auth/LoginForm'; // Импортируем LoginForm
 
+// --- КОНСТАНТЫ И ИНТЕРФЕЙСЫ ---
+// Можешь использовать здесь API_URL, который у тебя в других файлах.
+const LIVE_API_URL = 'http://localhost:3000'; // Для локального тестирования
+//const LIVE_API_URL = 'https://admin-panel-backend-18np.onrender.com'; // Замени на свой URL
+
 const WelcomePage: React.FC = () => {
   const theme = useMantineTheme();
 
+  // --- ЛОГИКА "БУДИЛЬНИКА" ---
+  // Этот useEffect сработает один раз при загрузке страницы.
+  useEffect(() => {
+    // 1. Создаем функцию-будильник
+    const wakeUpBackend = async () => {
+      try {
+        // 2. Отправляем простой, легкий GET-запрос.
+        // Цель - разбудить сервер на Render.com.
+        // Нам неважно, что он вернет, главное - сам факт запроса.
+        await fetch(LIVE_API_URL); // Или `${LIVE_API_URL}/health` если есть такой эндпоинт
+        console.log('Backend Woke Up');
+      } catch (error) {
+        // Если что-то пошло не так (например, сервер недоступен),
+        // просто логируем ошибку и не паримся, UI не должен сломаться.
+        console.warn('Failed to wake up backend, maybe it is unreachable:', error);
+      }
+    };
+
+    // 3. Запускаем будильник при первой загрузке компонента
+    wakeUpBackend();
+  }, []); // Пустой массив зависимостей гарантирует, что это сработает один раз при монтировании
+
+  // --- РЕНДЕРИНГ UI ---
   return (
     <Box
       style={{
@@ -82,7 +110,7 @@ const WelcomePage: React.FC = () => {
               Это ваша СРМ для учета персонала
             </Text>
             <Title order={3} style={{ color: theme.white, opacity: 0.9 }}>
-              ОАО "Жлобинмебель"
+              ТЕСТИРОВАНИЕ ОАО "SOLONOE UNLIMITED"
             </Title>
             
             <List

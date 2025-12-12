@@ -1,14 +1,14 @@
 import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-// Импортируем интерфейс User
-// Путь может отличаться, если User определен в отдельном файле
-import { type User } from '../pages/DashboardPage'; // Или '../types/User' если есть общий файл типов
+import { type User } from '../types/user'; // Импортируем интерфейс User
+
 
 interface AuthContextType {
   isAuthenticated: boolean;
   setIsAuthenticated: (value: boolean) => void;
-  user: User | null; // <-- ДОБАВЛЕНО: Объект текущего пользователя
-  setUser: (user: User | null) => void; // <-- ДОБАВЛЕНО: Функция для установки пользователя
-  isLoadingAuth: boolean; // <-- ИЗМЕНЕНО: Более явное название
+  user: User | null;
+  setUser: (user: User | null) => void;
+  isLoadingAuth: boolean; // Статус инициализации контекста
+  // isServerWakingUp (удалено)
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -19,46 +19,46 @@ interface AuthProviderProps {
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [user, setUser] = useState<User | null>(null); // <-- ДОБАВЛЕНО: Состояние для пользователя
-  const [isLoadingAuth, setIsLoadingAuth] = useState<boolean>(true); // <-- ИЗМЕНЕНО: Название
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoadingAuth, setIsLoadingAuth] = useState<boolean>(true);
+  // isServerWakingUp удалено полностью (включая useState)
 
+  // --- 1. Логика инициализации авторизации (проверка токена) ---
+  // Вся логика теперь в одном useEffect, который запускается сразу.
   useEffect(() => {
+    // Эта логика будет выполняться сразу при монтировании компонента.
     const initializeAuth = () => {
       const authToken = localStorage.getItem('authToken');
-      const storedUser = localStorage.getItem('loggedInUser'); // Пытаемся получить пользователя
+      const storedUser = localStorage.getItem('loggedInUser');
 
       if (authToken && storedUser) {
         try {
           const parsedUser: User = JSON.parse(storedUser);
           setIsAuthenticated(true);
-          setUser(parsedUser); // Устанавливаем пользователя при инициализации
+          setUser(parsedUser);
         } catch (e) {
           console.error("AuthContext: Ошибка при парсинге данных пользователя из localStorage", e);
-          // Если данные битые, очищаем все и сбрасываем авторизацию
           localStorage.removeItem('authToken');
           localStorage.removeItem('loggedInUser');
           setIsAuthenticated(false);
           setUser(null);
         }
       } else {
-        // Если нет токена ИЛИ данных пользователя, считаем неавторизованным
         setIsAuthenticated(false);
         setUser(null);
-        // Не удаляем `authToken` здесь, чтобы `DashboardPage` мог решить,
-        // нужно ли делать logout, если `authToken` есть, но `loggedInUser` нет.
       }
       setIsLoadingAuth(false); // Загрузка инициализации контекста завершена
     };
 
-    initializeAuth();
-  }, []); // Пустой массив зависимостей: выполнится только один раз при монтировании
+    initializeAuth(); // Запускаем проверку сразу
+  }, []); // Пустой массив зависимостей: запускается один раз при монтировании
 
-  // ЕслиisLoadingAuth TRUE, имеет смысл блокировать рендер всего приложения
-  // или показать глобальный лоадер во время инициализации контекста.
+  // --- 2. Условный рендеринг: Лоадер ---
+  // Теперь этот лоадер виден только во время проверки localStorage.
   if (isLoadingAuth) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', fontSize: '20px', color: '#ccc' }}>
-        Запуск приложения...
+        Загрузка аутентификации...
       </div>
     );
   }
@@ -70,6 +70,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   );
 };
 
+// --- Custom Hook для удобства использования контекста ---
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {

@@ -15,6 +15,7 @@ import WelcomePage from './pages/WelcomePage';
 import DashboardPage from './pages/DashboardPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
+import UserManagementPage from './pages/UserManagementPage'; // <-- НОВЫЙ ИМПОРТ
 
 // ==========================================================
 // ДОЧЕРНИЙ КОМПОНЕНТ APPCONTENT
@@ -51,6 +52,14 @@ const AppContent: React.FC = () => {
         path="/dashboard"
         element={isAuthenticated ? <DashboardPage /> : <Navigate to="/login" />}
       />
+
+ {/* --- ГЛАВНОЕ: НОВЫЙ МАРШРУТ УПРАВЛЕНИЯ ПОЛЬЗОВАТЕЛЯМИ --- */}
+      {/* Используем логику защиты маршрута, как в других местах */}
+      <Route
+        path="/admin/users" // <- Путь, который ты задал в linkTo у карточки
+        element={isAuthenticated ? <UserManagementPage /> : <Navigate to="/login" />}
+      />
+
       {/* Опционально: Маршрут для 404 страницы (любые другие пути) */}
       <Route path="*" element={
         <Center style={{ height: '100vh', flexDirection: 'column' }}> {/* Стили для 404 */}
@@ -67,7 +76,7 @@ const AppContent: React.FC = () => {
 // Оборачивает приложение в провайдеры (Mantine и Auth) и добавляет глобальный фон
 // ==========================================================
 function App() {
-  const backgroundImage = 'url("https://images.unsplash.com/photo-1549880338-65ddcdfd017b?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop")';
+  const backgroundImage = 'url(https://plus.unsplash.com/premium_photo-1744984305460-a16e58cf20a8?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1yZWxhdGVkfDU3fHx8ZW58MHx8fHx8)';
 
   return (
     <BrowserRouter>

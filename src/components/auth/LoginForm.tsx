@@ -24,7 +24,7 @@ import RegistrationForm from './RegistrationForm';
 
 import { useAuth } from '../../context/AuthContext';
 // Импортируем интерфейс User, чтобы правильно типизировать
-import { type User } from '../../pages/DashboardPage'; // Или из src/types/User, если вынесли
+import { type User } from '../../types/user'; // Или из src/types/User, если вынесли
 
 
 const LoginForm: React.FC = () => {
