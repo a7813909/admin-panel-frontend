@@ -1,4 +1,4 @@
-import React, { type FC, useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import {
   Box,
   Paper,
